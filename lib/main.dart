@@ -1,103 +1,82 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:webview_flutter/webview_flutter.dart';
 
-Future main() async {
-  WidgetsFlutterBinding.ensureInitialized();
-  runApp(MyApp());
-}
 
-class MyApp extends StatefulWidget {
+void main() => runApp(MyApp());
+class MyApp extends StatelessWidget {
   @override
-  _MyAppState createState() => _MyAppState();
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      title: 'Flutter Web Views',
+      theme: ThemeData(
+          primarySwatch: Colors.blue,
+          fontFamily: "Arial",
+          textTheme: TextTheme(
+              button: TextStyle(color: Colors.white, fontSize: 18.0),
+              title: TextStyle(color: Colors.red))),
+      home: WebViewContainer('http://mplace.zetsoft.uz/core/tester/asror/main.aspx?path=render/places/ZMaptalks/demo/speech/MaptalksSpeech3.php'),
+    );
+  }
 }
 
-class _MyAppState extends State<MyApp> {
-  InAppWebViewController webView;
-  String url = "";
-  double progress = 0;
+class WebViewContainer extends StatefulWidget {
+  final url;
+  WebViewContainer(this.url);
+  @override
+  createState() => _WebViewContainerState(this.url);
+}
+class _WebViewContainerState extends State<WebViewContainer> {
+  PermissionStatus _status;
 
   @override
   void initState() {
     super.initState();
+    // PermissionHandler().checkPermissionStatus(PermissionGroup.locationWhenInUse)
+    // .then(_updateStatus);
+    _askPermission();
   }
 
-  @override
-  void dispose() {
-    super.dispose();
+  void _updateStatus(PermissionStatus status){
+    if(status != _status){
+      setState(() {
+        _status = status;
+      });
+    }
   }
 
+
+  var _url;
+  final _key = UniqueKey();
+  _WebViewContainerState(this._url);
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      home: Scaffold(
+    return Scaffold(
         appBar: AppBar(
-          title: Text('Maptalks Demo'),
+          title: Text("$_status"),
+          actions: [
+            IconButton(icon: Icon(Icons.check), onPressed: _askPermission,),
+          ],
         ),
-        body: Container(
-          child: Column(
-            children: <Widget>[
-              Container(
-                child: progress < 1.0
-                    ? LinearProgressIndicator(value: progress)
-                    : Container(),
-              ),
-              Expanded(
-                child: Container(
-                  child: InAppWebView(
-                    initialFile: "assets/web-maptalks/index.html",
-                    initialHeaders: {},
-                    initialOptions: InAppWebViewGroupOptions(
-                        crossPlatform: InAppWebViewOptions(
-                      debuggingEnabled: true,
-                    )),
-                    onWebViewCreated: (InAppWebViewController controller) {
-                      webView = controller;
-                    },
-                    onLoadStart:
-                        (InAppWebViewController controller, String url) {
-                      setState(() {
-                        this.url = url;
-                      });
-                    },
-                    onLoadStop:
-                        (InAppWebViewController controller, String url) async {
-                      setState(() {
-                        this.url = url;
-                      });
+        body: Column(
+          children: [
+            Expanded(
+                child: WebView(
+                    key: _key,
+                    javascriptMode: JavascriptMode.unrestricted,
+                    initialUrl: _url))
+          ],
+        ));
+  }
 
-                      // //    await controller.injectJavascriptFileFromUrl(urlFile: "https://code.jquery.com/jquery-3.3.1.min.js");
-                      // // // wait for jquery to be loaded
-                      // await controller.injectJavascriptFileFromUrl(
-                      //     urlFile:
-                      //         "https://code.jquery.com/jquery-3.3.1.min.js");
-                      // // wait for jquery to be loaded
-
-                      // await controller.injectCSSFileFromAsset(
-                      //   assetFilePath: "assets/web-maptalks/maptalks.min.js",
-                      // );
-
-                      // await controller.injectCSSFileFromAsset(
-                      //   assetFilePath: "assets/web-maptalks/settings.js",
-                      // );
-
-                      // String result3 = await controller.evaluateJavascript(
-                      //     source: "\$('body').html();");
-                      // print(result3);
-                    },
-                    onProgressChanged:
-                        (InAppWebViewController controller, int progress) {
-                      setState(() {
-                        this.progress = progress / 100;
-                      });
-                    },
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+  void _askPermission(){
+    PermissionHandler().requestPermissions([PermissionGroup.locationWhenInUse])
+    .then(_onStatusRequested);
+  }
+  void _onStatusRequested(Map<PermissionGroup, PermissionStatus> statues){
+    final status = statues[PermissionGroup.locationWhenInUse];
+    _updateStatus(status);
   }
 }
